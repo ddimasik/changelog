@@ -1,0 +1,18 @@
+stages:
+  - changelog
+
+changelog:
+  stage: changelog
+  tags:
+    - docker
+    - build
+  script:
+    - CI_COMMIT_TAG=$(echo $CI_COMMIT_TAG | sed 's;/;%2F;g') #because we have slash in release name
+    - git log --tags --simplify-by-decoration --pretty="format:%ct" -2 > tags-time #current tag and previous one
+    - OLDESTCOMMIT=$(tail -1 ./tags-time)
+    - OLDESTCOMMIT=$(($OLDESTCOMMIT + 1)) #besause we needn't  the very last commit, it was in the previous tag
+    - YOUNGESTCOMMIT=$(head -1 ./tags-time)
+    - touch CHANGELOG.md; echo "### Changelog" > ./CHANGELOG.md; git log --format="- %s  %nauthor %an %ce  %nhash %H %n" --before $YOUNGESTCOMMIT --after $OLDESTCOMMIT >> ./CHANGELOG.md
+    - curl --request POST --data description="$(cat ./CHANGELOG.md)" --header "PRIVATE-TOKEN:$GIT_TOKEN" "https://misp.t-systems.com/tools/gitlab/api/v4/projects/$CI_PROJECT_ID/repository/tags/$CI_COMMIT_TAG/release"
+
+
